@@ -13,7 +13,7 @@ import (
 func SetupDatabase() *gorm.DB {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatalf("Error loading .env file: %v", err)
 	}
 
 	dbURL := os.Getenv("DATABASE_URL")
