@@ -30,5 +30,6 @@ func NewRedisClient() *redis.Client {
 		log.Printf("Error parsing Redis URL: %v", err)
 		return nil
 	}
+	log.Println("Successfully connected to Redis")
 	return redis.NewClient(opts)
 }

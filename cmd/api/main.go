@@ -16,8 +16,8 @@ func main() {
 	}
 
 	router := http.NewServeMux()
-	redisClient := config.NewRedisClient()
 	db := config.SetupDatabase()
+	redisClient := config.NewRedisClient()
 
 	urlHandler := handlers.NewUrlHandler(db, redisClient)
 
