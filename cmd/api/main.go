@@ -5,14 +5,16 @@ import (
 	"linkcrush/internal/handlers"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
+	if os.Getenv("ENVIRONMENT") != "production" {
+		if err := godotenv.Load(); err != nil {
+			log.Fatalf("Error loading .env file: %v", err)
+		}
 	}
 
 	router := http.NewServeMux()

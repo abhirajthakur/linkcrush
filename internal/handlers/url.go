@@ -111,6 +111,12 @@ func (h *UrlHandler) GetShortUrl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	response = models.UrlResponse{
+		ID:        urlData.ID,
+		URL:       urlData.Url,
+		ShortCode: urlData.ShortCode,
+	}
+
 	jsonStr, _ := json.Marshal(urlData)
 	if err := h.redis.Set(ctx, shortCode, jsonStr, time.Hour).Err(); err != nil {
 		fmt.Printf("Redis cache set error: %v\n", err)
