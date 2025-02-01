@@ -41,6 +41,43 @@ func (h *UrlHandler) SetShortUrl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var existingUrl models.Url
+	err := h.db.Where("url = ?", reqBody.Url).First(&existingUrl).Error
+
+	if err == nil {
+		if err := h.redis.Del(ctx, existingUrl.ShortCode).Err(); err != nil {
+			fmt.Printf("Error removing old short code from Redis cache: %v\n", err)
+		}
+
+		shortCode := h.generateUniqueCode(ctx, reqBody.Url)
+
+		existingUrl.ShortCode = shortCode
+		err = h.db.Save(&existingUrl).Error
+		if err != nil {
+			http.Error(w, "Error updating the record in database", http.StatusInternalServerError)
+			return
+		}
+
+		response := models.UrlResponse{
+			ID:        existingUrl.ID,
+			URL:       existingUrl.Url,
+			ShortCode: existingUrl.ShortCode,
+		}
+
+		jsonStr, err := json.Marshal(existingUrl)
+		if err == nil {
+			if err := h.redis.Set(ctx, existingUrl.ShortCode, jsonStr, time.Hour).Err(); err != nil {
+				fmt.Printf("Redis cache set error: %v\n", err)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, "Error converting the data to json", http.StatusInternalServerError)
+		}
+		return
+	}
+
 	shortCode := h.generateUniqueCode(ctx, reqBody.Url)
 	urlData := models.Url{
 		ID:          uuid.New().String(),
@@ -49,9 +86,10 @@ func (h *UrlHandler) SetShortUrl(w http.ResponseWriter, r *http.Request) {
 		AccessCount: 0,
 	}
 
-	err := h.db.Create(&urlData).Error
+	err = h.db.Create(&urlData).Error
 	if err != nil {
 		http.Error(w, "Error while saving the data to database", http.StatusInternalServerError)
+		return
 	}
 
 	response := models.UrlResponse{
@@ -62,11 +100,9 @@ func (h *UrlHandler) SetShortUrl(w http.ResponseWriter, r *http.Request) {
 
 	jsonStr, err := json.Marshal(urlData)
 	if err != nil {
-		http.Error(w, "Error marshaling data", http.StatusInternalServerError)
-		return
-	}
-	if err := h.redis.Set(ctx, shortCode, jsonStr, time.Hour).Err(); err != nil {
-		fmt.Printf("Redis cache set error: %v\n", err)
+		if er := h.redis.Set(ctx, shortCode, jsonStr, time.Hour).Err(); er != nil {
+			fmt.Printf("Redis cache set error: %v\n", er)
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -153,6 +189,43 @@ func (h *UrlHandler) GetShourtUrlStats(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "URL not found. Please check the short URL and try again.", http.StatusNotFound)
 		return
 	}
+
+	jsonStr, _ := json.Marshal(urlData)
+	if err := h.redis.Set(ctx, shortCode, jsonStr, time.Hour).Err(); err != nil {
+		fmt.Printf("Redis cache set error: %v\n", err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(urlData)
+}
+
+func (h *UrlHandler) Redirect(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	defer ctx.Done()
+
+	shortCode := r.PathValue("shortCode")
+	var urlData models.Url
+
+	w.Header().Set("Content-Type", "application/json")
+
+	cachedUrl, err := h.redis.Get(ctx, shortCode).Result()
+	if err == nil {
+		if err := json.Unmarshal([]byte(cachedUrl), &urlData); err != nil {
+			http.Error(w, "Error unmarshalling JSON from Redis", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(urlData)
+		return
+	}
+
+	if err := h.db.Where("short_code = ?", shortCode).First(&urlData).Error; err != nil {
+		http.Error(w, "URL not found. Please check the short URL and try again.", http.StatusNotFound)
+		return
+	}
+
+	http.Redirect(w, r, urlData.Url, http.StatusFound)
 
 	jsonStr, _ := json.Marshal(urlData)
 	if err := h.redis.Set(ctx, shortCode, jsonStr, time.Hour).Err(); err != nil {

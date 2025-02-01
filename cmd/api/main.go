@@ -3,6 +3,7 @@ package main
 import (
 	"linkcrush/internal/config"
 	"linkcrush/internal/handlers"
+	"linkcrush/internal/middleware"
 	"log"
 	"net/http"
 	"os"
@@ -23,13 +24,14 @@ func main() {
 
 	urlHandler := handlers.NewUrlHandler(db, redisClient)
 
+	// router.HandleFunc("GET /{shortCode}", urlHandler.Redirect)
 	router.HandleFunc("POST /shorten", urlHandler.SetShortUrl)
 	router.HandleFunc("GET /shorten/{shortCode}", urlHandler.GetShortUrl)
 	router.HandleFunc("GET /shorten/{shortCode}/stats", urlHandler.GetShourtUrlStats)
 
 	server := http.Server{
 		Addr:    ":" + "8080",
-		Handler: router,
+		Handler: middleware.EnableCors(router),
 	}
 
 	log.Printf("Server starting on %s", server.Addr)
