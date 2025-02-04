@@ -11,6 +11,7 @@ export const UrlShortenerForm = () => {
   const { toast } = useToast();
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const REDIRECT_BASE_URL = import.meta.env.VITE_REDIRECT_BASE_URL;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,25 +25,38 @@ export const UrlShortenerForm = () => {
     }
 
     setIsLoading(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/shorten`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: url }),
+      });
 
-    const response = await fetch(`${BACKEND_URL}/shorten`, {
-      method: "POST",
-      body: JSON.stringify({
-        url: url,
-      }),
-    });
+      if (!response.ok) {
+        throw new Error("Failed to shorten URL");
+      }
 
-    const res = await response.json();
-
-    console.log(res);
-
-    setShortUrl("http://localhost:5173/" + res.short_code);
-
-    setIsLoading(false);
-    toast({
-      title: "Success!",
-      description: "Your URL has been shortened",
-    });
+      const data = await response.json();
+      const newShortUrl = `${REDIRECT_BASE_URL}/${data.short_code}`;
+      setShortUrl(newShortUrl);
+      toast({
+        title: "Success!",
+        description: "Your URL has been shortened",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to redirect to original URL",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const copyToClipboard = () => {
@@ -51,6 +65,29 @@ export const UrlShortenerForm = () => {
       title: "Copied!",
       description: "URL copied to clipboard",
     });
+  };
+
+  const handleRedirect = async () => {
+    const shortCode = shortUrl.split("/").pop();
+    if (shortCode) {
+      try {
+        const response = await fetch(`${BACKEND_URL}/shorten/${shortCode}`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch original URL");
+        }
+        const data = await response.json();
+        window.open(data.url, "_blank");
+      } catch (error) {
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to redirect to original URL",
+          variant: "destructive",
+        });
+      }
+    }
   };
 
   return (
@@ -101,21 +138,19 @@ export const UrlShortenerForm = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => window.open(shortUrl, "_blank")}
+                onClick={handleRedirect}
                 className="hover:bg-violet-50"
               >
                 <ExternalLink className="h-4 w-4 text-violet-600" />
               </Button>
             </div>
           </div>
-          <a
-            href={shortUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-violet-600 hover:text-violet-700 transition-colors break-all block font-medium"
+          <button
+            onClick={handleRedirect}
+            className="text-violet-600 hover:text-violet-700 transition-colors break-all block font-medium text-left w-full"
           >
             {shortUrl}
-          </a>
+          </button>
         </div>
       )}
     </div>
