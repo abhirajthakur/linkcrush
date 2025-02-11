@@ -24,7 +24,6 @@ func main() {
 
 	urlHandler := handlers.NewUrlHandler(db, redisClient)
 
-	// router.HandleFunc("GET /{shortCode}", urlHandler.Redirect)
 	router.HandleFunc("POST /shorten", urlHandler.SetShortUrl)
 	router.HandleFunc("GET /shorten/{shortCode}", urlHandler.GetShortUrl)
 	router.HandleFunc("GET /shorten/{shortCode}/stats", urlHandler.GetShourtUrlStats)

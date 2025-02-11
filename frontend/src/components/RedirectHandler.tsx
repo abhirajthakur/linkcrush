@@ -15,7 +15,9 @@ export const RedirectHandler = () => {
     const fetchUrl = async () => {
       try {
         const response = await fetch(`${BACKEND_URL}/shorten/${shortCode}`);
-        if (!response.ok) throw new Error();
+        if (!response.ok) {
+          throw new Error("Not able to fetch the short code details");
+        }
 
         const data = await response.json();
         if (data.url) {

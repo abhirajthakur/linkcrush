@@ -261,7 +261,7 @@ func (h *UrlHandler) updateAccessCount(ctx context.Context, shortCode string) {
 }
 
 func isValidURL(url string) bool {
-	const urlPattern = `https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,4}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)`
+	const urlPattern = `^(http|https):\/\/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(/[a-zA-Z0-9-._~:?#@!$&'()*+,;=]*)*$`
 	re := regexp.MustCompile(urlPattern)
 	return re.MatchString(url)
 }
